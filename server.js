@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
-const PROXY_BASE = process.env.PROXY_BASE || 'https://integrate.api.nvidia.com/v1';
+const PROXY_BASE = process.env.PROXY_BASE || 'https://integrate.api.nvidia.com';
 const CLIENT_AUTH_KEY = process.env.CLIENT_AUTH_KEY;
 const PROXY_AUTH_KEY = process.env.PROXY_AUTH_KEY; // password for wulfs-den.ink/proxy
 
@@ -179,26 +179,49 @@ app.post('/v1/chat/completions', async (req, res) => {
         req.removeAllListeners('close');
       };
 
+  
       const processLine = (line) => {
-        if (!line.startsWith('data: ')) return;
+  if (!line.startsWith('data: ')) return;
 
-        if (line.includes('[DONE]')) {
-          if (!doneSent) {
-            safeWrite(res, 'data: [DONE]\n\n');
-            doneSent = true;
-          }
-          streamEndedCleanly = true;
-          return;
-        }
+  if (line.includes('[DONE]')) {
+    if (!doneSent) {
+      safeWrite(res, 'data: [DONE]\n\n');
+      doneSent = true;
+    }
+    streamEndedCleanly = true;
+    return;
+  }
 
-        try {
-          // Validate JSON, then forward
-          JSON.parse(line.slice(6));
-          safeWrite(res, `${line}\n\n`);
-        } catch {
-          console.warn('[STREAM] Skipping malformed chunk:', line.slice(0, 100));
+  try {
+    const data = JSON.parse(line.slice(6));
+
+    // Convert reasoning_content into normal content.
+    // If both exist, reasoning comes first.
+    if (Array.isArray(data.choices)) {
+      for (const choice of data.choices) {
+        if (!choice.delta) continue;
+
+        const reasoning = choice.delta.reasoning_content;
+        const content = choice.delta.content;
+
+        if (reasoning != null) {
+          choice.delta.content =
+            String(reasoning) +
+            (content != null ? String(content) : '');
+
+          delete choice.delta.reasoning_content;
         }
-      };
+      }
+    }
+
+    safeWrite(res, `data: ${JSON.stringify(data)}\n\n`);
+  } catch {
+    console.warn(
+      '[STREAM] Skipping malformed chunk:',
+      line.slice(0, 100)
+    );
+  }
+};
 
       upstreamStream.on('data', chunk => {
         buffer += decoder.write(chunk);
