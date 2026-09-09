@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
-const PROXY_BASE = process.env.PROXY_BASE || 'https://wulfs-den.ink/proxy';
+const PROXY_BASE = process.env.PROXY_BASE || 'https://integrate.api.nvidia.com/v1';
 const CLIENT_AUTH_KEY = process.env.CLIENT_AUTH_KEY;
 const PROXY_AUTH_KEY = process.env.PROXY_AUTH_KEY; // password for wulfs-den.ink/proxy
 
